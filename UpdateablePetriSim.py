@@ -3,14 +3,16 @@ from pyvis.network import Network
 import threading
 import webbrowser
 import os
+import re
 
 # --- Petri Net Core ---
 class PetriNet:
-    def __init__(self):
-        self.places = {"P1": 1, "P2": 0}
-        self.transitions = ["T1", "T2"]
-        self.arcs_in = {"T1": [("P1", 1)], "T2": [("P2", 1)]}
-        self.arcs_out = {"T1": [("P2", 1)], "T2": [("P1", 1)]}
+    def __init__(self, filename = "sample.txt"):
+        self.places = {}
+        self.transitions = []
+        self.arcs_in = {}
+        self.arcs_out = {}
+        self.load_petri_net(filename)
 
     def fireable(self):
         fireable = []
@@ -27,6 +29,47 @@ class PetriNet:
         for p, w in self.arcs_out[transition]:
             self.places[p] += w
         return True
+
+    def load_petri_net(self, filename):
+        
+        section = None
+
+        arc_re = re.compile(r"(\S+)\s*->\s*(\S+)\s+(\d+)")
+
+        with open(filename) as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                # Section headers
+                if line in ("PLACES", "TRANSITIONS", "ARCS"):
+                    section = line
+                    continue
+
+                # Parse each section
+                if section == "PLACES":
+                    name, tokens = line.split()
+                    self.places[name] = int(tokens)
+
+                elif section == "TRANSITIONS":
+                    self.transitions.append(line)
+
+                elif section == "ARCS":
+                    m = arc_re.match(line)
+                    if not m:
+                        raise ValueError(f"Invalid arc syntax: {line}")
+
+                    src, dst, w = m.groups()
+                    w = int(w)
+
+                    # place -> transition
+                    if src in self.places:
+                        self.arcs_in.setdefault(dst, []).append((src, w))
+                    # transition -> place
+                    else:
+                        self.arcs_out.setdefault(src, []).append((dst, w))
+
 
 # --- PyVis Visualizer ---
 class PetriNetVisualizer:
