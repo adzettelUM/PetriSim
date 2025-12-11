@@ -1,0 +1,143 @@
+PLACES
+p1_think 1
+p1_hungry 0
+p1_eat 0
+
+p2_think 1
+p2_hungry 0
+p2_eat 0
+
+p3_think 1
+p3_hungry 0
+p3_eat 0
+
+p4_think 1
+p4_hungry 0
+p4_eat 0
+
+p5_think 1
+p5_hungry 0
+p5_eat 0
+
+c1 1
+c2 1
+c3 1
+c4 1
+c5 1
+
+TRANSITIONS
+t1_hungry
+t1_get_left
+t1_get_right
+t1_release
+
+t2_hungry
+t2_get_left
+t2_get_right
+t2_release
+
+t3_hungry
+t3_get_left
+t3_get_right
+t3_release
+
+t4_hungry
+t4_get_left
+t4_get_right
+t4_release
+
+t5_hungry
+t5_get_left
+t5_get_right
+t5_release
+
+ARCS
+# Philosopher 1
+p1_think -> t1_hungry 1
+t1_hungry -> p1_hungry 1
+
+p1_hungry -> t1_get_left 1
+c1 -> t1_get_left 1
+t1_get_left -> p1_hungry 1
+t1_get_left -> c1 0   # no output; still hungry but holding left
+
+p1_hungry -> t1_get_right 1
+c2 -> t1_get_right 1
+t1_get_right -> p1_eat 1
+
+p1_eat -> t1_release 1
+t1_release -> p1_think 1
+t1_release -> c1 1
+t1_release -> c2 1
+
+# Philosopher 2
+p2_think -> t2_hungry 1
+t2_hungry -> p2_hungry 1
+
+p2_hungry -> t2_get_left 1
+c2 -> t2_get_left 1
+t2_get_left -> p2_hungry 1
+t2_get_left -> c2 0
+
+p2_hungry -> t2_get_right 1
+c3 -> t2_get_right 1
+t2_get_right -> p2_eat 1
+
+p2_eat -> t2_release 1
+t2_release -> p2_think 1
+t2_release -> c2 1
+t2_release -> c3 1
+
+# Philosopher 3
+p3_think -> t3_hungry 1
+t3_hungry -> p3_hungry 1
+
+p3_hungry -> t3_get_left 1
+c3 -> t3_get_left 1
+t3_get_left -> p3_hungry 1
+t3_get_left -> c3 0
+
+p3_hungry -> t3_get_right 1
+c4 -> t3_get_right 1
+t3_get_right -> p3_eat 1
+
+p3_eat -> t3_release 1
+t3_release -> p3_think 1
+t3_release -> c3 1
+t3_release -> c4 1
+
+# Philosopher 4
+p4_think -> t4_hungry 1
+t4_hungry -> p4_hungry 1
+
+p4_hungry -> t4_get_left 1
+c4 -> t4_get_left 1
+t4_get_left -> p4_hungry 1
+t4_get_left -> c4 0
+
+p4_hungry -> t4_get_right 1
+c5 -> t4_get_right 1
+t4_get_right -> p4_eat 1
+
+p4_eat -> t4_release 1
+t4_release -> p4_think 1
+t4_release -> c4 1
+t4_release -> c5 1
+
+# Philosopher 5
+p5_think -> t5_hungry 1
+t5_hungry -> p5_hungry 1
+
+p5_hungry -> t5_get_left 1
+c5 -> t5_get_left 1
+t5_get_left -> p5_hungry 1
+t5_get_left -> c5 0
+
+p5_hungry -> t5_get_right 1
+c1 -> t5_get_right 1   # wraps around
+t5_get_right -> p5_eat 1
+
+p5_eat -> t5_release 1
+t5_release -> p5_think 1
+t5_release -> c5 1
+t5_release -> c1 1
