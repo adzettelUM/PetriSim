@@ -32,8 +32,8 @@
         <style type="text/css">
 
              #mynetwork {
-                 width: 100%;
-                 height: 600px;
+                 width: 100vw;
+                 height: 100vh;
                  background-color: #ffffff;
                  border: 1px solid lightgray;
                  position: relative;
@@ -88,7 +88,7 @@
                   
 
                   // parsing and collecting nodes and edges from the python
-                  nodes = new vis.DataSet([{"color": "#89CFF0", "id": "p_p1", "label": "p1\nTokens: 2", "shape": "circle", "size": 40}, {"color": "#89CFF0", "id": "p_p2", "label": "p2\nTokens: 0", "shape": "circle", "size": 30}, {"color": "#89CFF0", "id": "p_p3", "label": "p3\nTokens: 0", "shape": "circle", "size": 30}, {"color": "#7CFC00", "height": 40, "id": "t_t1", "label": "t1", "shape": "box", "title": "Click to fire", "width": 40}, {"color": "#A9A9A9", "height": 40, "id": "t_t2", "label": "t2", "shape": "box", "title": "Click to fire", "width": 40}, {"color": "#A9A9A9", "height": 40, "id": "t_t3", "label": "t3", "shape": "box", "title": "Click to fire", "width": 40}]);
+                  nodes = new vis.DataSet([{"color": "#89CFF0", "id": "p_p1", "label": "p1\nTokens: 2", "shape": "circle", "size": 40, "title": "Place p1"}, {"color": "#89CFF0", "id": "p_p2", "label": "p2\nTokens: 0", "shape": "circle", "size": 30, "title": "Place p2"}, {"color": "#89CFF0", "id": "p_p3", "label": "p3\nTokens: 0", "shape": "circle", "size": 30, "title": "Place p3"}, {"color": "#7CFC00", "height": 60, "id": "t_t1", "label": "t1", "shape": "box", "title": "Click to fire", "width": 110}, {"color": "#A9A9A9", "height": 60, "id": "t_t2", "label": "t2", "shape": "box", "title": "Click to fire", "width": 110}, {"color": "#A9A9A9", "height": 60, "id": "t_t3", "label": "t3", "shape": "box", "title": "Click to fire", "width": 110}]);
                   edges = new vis.DataSet([{"arrows": "to", "from": "p_p1", "label": "1", "smooth": "curvedCW", "to": "t_t1"}, {"arrows": "to", "from": "p_p2", "label": "2", "smooth": "curvedCW", "to": "t_t2"}, {"arrows": "to", "from": "p_p3", "label": "1", "smooth": "curvedCW", "to": "t_t3"}, {"arrows": "to", "from": "t_t1", "label": "1", "smooth": "curvedCCW", "to": "p_p2"}, {"arrows": "to", "from": "t_t2", "label": "1", "smooth": "curvedCCW", "to": "p_p3"}, {"arrows": "to", "from": "t_t3", "label": "2", "smooth": "curvedCCW", "to": "p_p1"}]);
 
                   nodeColors = {};
@@ -100,35 +100,7 @@
                   // adding nodes and edges to the graph
                   data = {nodes: nodes, edges: edges};
 
-                  var options = {
-    "configure": {
-        "enabled": false
-    },
-    "edges": {
-        "color": {
-            "inherit": true
-        },
-        "smooth": {
-            "enabled": true,
-            "type": "dynamic"
-        }
-    },
-    "interaction": {
-        "dragNodes": true,
-        "hideEdgesOnDrag": false,
-        "hideNodesOnDrag": false
-    },
-    "physics": {
-        "enabled": true,
-        "stabilization": {
-            "enabled": true,
-            "fit": true,
-            "iterations": 1000,
-            "onlyDynamicEdges": false,
-            "updateInterval": 50
-        }
-    }
-};
+                  var options = {"physics": {"stabilization": false}, "interaction": {"hover": true, "multiselect": false}};
 
                   
 
@@ -151,25 +123,157 @@
               }
               drawGraph();
         </script>
-    </body>
+    
+<!-- TOOLBAR -->
+<div id="toolbar" style="
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 9999;
+    background: rgba(255,255,255,0.9);
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    display:flex;
+    gap:6px;
+    align-items:center;
+">
+  <button onclick="emitStep()" title="Step (fire selected transition)">Step</button>
+  <button onclick="emitRunToDeadlock()" title="Run until deadlock">Run to Deadlock</button>
+  <button onclick="emitUndo()" title="Undo">Undo</button>
+  <button onclick="emitRedo()" title="Redo">Redo</button>
+  <button onclick="emitReset()" title="Reset tokens">Reset</button>
+  <button onclick="saveNet()" title="Save net to JSON">Save</button>
+  <input id="loadFile" type="file" style="display:none" onchange="loadNetFromFile(event)" />
+  <button onclick="document.getElementById('loadFile').click()" title="Load net from JSON">Load</button>
+  <button onclick="zoomToFit()" title="Zoom to fit">Zoom to Fit</button>
+  <span id="status" style="margin-left:6px;font-weight:600;"></span>
+</div>
+
+<!-- DEADLOCK BANNER (hidden by default) -->
+<div id="deadlockBanner" style="
+    display:none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: red;
+    color: white;
+    text-align: center;
+    padding: 18px;
+    font-size: 28px;
+    font-weight: 700;
+    z-index: 9998;
+    cursor: pointer;
+">
+    DEADLOCK — CLICK TO RESET
+</div>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<script type="text/javascript">
+  var socket = io();
+
+  // network variable is created by pyvis as 'network'
+  // helper to update node (circle or box)
+  function applyNodeUpdate(n) {
+    let update = { id: n.id, label: n.label, color: n.color };
+    if(n.size !== null) {
+      update.size = n.size;
+    }
+    if(n.width !== null) {
+      update.width = n.width;
+      update.height = n.height;
+    }
+    try {
+      network.body.data.nodes.update(update);
+    } catch(e) {
+      console.error("update error", e, update);
+    }
+  }
+
+  // When server sends update, apply nodes and deadlock/banner state
+  socket.on("update", function(payload) {
+    if(payload.nodes) {
+      payload.nodes.forEach(function(n) { applyNodeUpdate(n); });
+    }
+    if(payload.deadlocked) {
+      document.getElementById('deadlockBanner').style.display = 'block';
+    } else {
+      document.getElementById('deadlockBanner').style.display = 'none';
+    }
+    if(payload.message) {
+      document.getElementById('status').innerText = payload.message;
+      setTimeout(()=>document.getElementById('status').innerText='', 1500);
+    }
+  });
+
+  // handle click on network nodes
+  network.on("click", function(params) {
+    if(params.nodes && params.nodes.length === 1) {
+      var nodeId = params.nodes[0];
+      if(nodeId.startsWith("t_")) {
+        // trigger server fire of this transition
+        socket.emit("fire", { transition: nodeId.substring(2) });
+      }
+    }
+  });
+
+  // deadlock banner click triggers reset
+  document.getElementById("deadlockBanner").onclick = function() {
+    socket.emit("reset");
+  };
+
+  // Toolbar functions
+  function emitStep() {
+    // Step: fire currently selected transition (if any)
+    var sel = network.getSelectedNodes();
+    if(sel && sel.length === 1 && sel[0].startsWith("t_")) {
+      socket.emit("fire", { transition: sel[0].substring(2) });
+    } else {
+      // no selection: fire the first available transition
+      socket.emit("step");
+    }
+  }
+  function emitRunToDeadlock() { socket.emit("run_to_deadlock"); }
+  function emitUndo() { socket.emit("undo"); }
+  function emitRedo() { socket.emit("redo"); }
+  function emitReset() { socket.emit("reset"); }
+  function zoomToFit() { network.fit(); }
+
+  // Save/Load
+  function saveNet() {
+    socket.emit("save_request");
+  }
+  socket.on("save_data", function(payload) {
+    var blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "petri_net.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  function loadNetFromFile(evt) {
+    var file = evt.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var obj = JSON.parse(e.target.result);
+        socket.emit("load_request", obj);
+      } catch(err) {
+        alert("Invalid JSON file");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // network ready -> request full update
+  socket.on("connect", function() {
+    socket.emit("client_ready");
+  });
+
+</script>
+</body>
 </html>
-        <script type="text/javascript">
-        network.on("click", function(params) {
-            if(params.nodes.length > 0) {
-                var nodeId = params.nodes[0];
-                if(nodeId.startsWith("t_")){
-                    fetch("/fire_transition", {
-                        method: "POST",
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({transition: nodeId.substring(2)})
-                    }).then(response => response.json()).then(data => {
-                        // update node labels and colors
-                        for(const [id, label, color, size] of data.nodes){
-                            network.body.data.nodes.update({id:id,label:label,color:color,size:size});
-                        }
-                    });
-                }
-            }
-        });
-        </script>
-        
