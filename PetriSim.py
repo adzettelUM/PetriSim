@@ -89,19 +89,58 @@ class PetriNet:
                     else:
                         self.arcs_out.setdefault(src, []).append((dst, w))
 
-        
+
+
+from pyvis.network import Network
+import dash
+from dash import html, dcc, Input, Output, State
+import dash_cytoscape as cyto
+
+class PetriNetVisualizer:
+    def __init__(self, petri_net):
+        self.pn = petri_net
+        self.net = Network(directed=True, notebook=False)
+        self.transition_nodes = {}
+        self.place_nodes = {}
+
+    def build_graph(self):
+        # Add places
+        for place, tokens in self.pn.places.items():
+            label = f"{place}\nTokens: {tokens}"
+            node_id = f"p_{place}"
+            self.net.add_node(node_id, label=label, shape='circle', color='#89CFF0', size=30 + tokens*5)
+            self.place_nodes[place] = node_id
+
+        # Add transitions
+        for t in self.pn.transitions:
+            label = t
+            node_id = f"t_{t}"
+            color = '#A9A9A9'
+            if t in self.pn.fireable():  # optional: highlight fireable transitions
+                color = '#7CFC00'
+            self.net.add_node(node_id, label=label, shape='box', color=color, size=25)
+            self.transition_nodes[t] = node_id
+
+        # Add arcs (inputs)
+        for t, arcs in self.pn.arcs_in.items():
+            for place, weight in arcs:
+                self.net.add_edge(self.place_nodes[place], self.transition_nodes[t], arrows='to', label=str(weight))
+
+        # Add arcs (outputs)
+        for t, arcs in self.pn.arcs_out.items():
+            for place, weight in arcs:
+                self.net.add_edge(self.transition_nodes[t], self.place_nodes[place], arrows='to', label=str(weight))
+
+    def show(self, filename="petri_net.html"):
+        self.build_graph()
+        self.net.show(filename, notebook=False)
+        print(f"Interactive Petri Net visual saved as {filename}")
+
 
 if __name__ == "__main__":
     pn = PetriNet()
     pn.load_petri_net("petri.txt")
-    print("Load in petri net")
     print(pn)
 
-    print("Fire a transition")
-    pn.fire_transitions("t1")
-    print(pn)
-    
-    print("Do it again")
-    pn.fire_transitions("t1")
-    print(pn)
-    
+    viz = PetriNetVisualizer(pn)
+    viz.show()
