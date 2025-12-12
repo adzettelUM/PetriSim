@@ -126,19 +126,20 @@ class PetriNet:
                 M = copy.deepcopy(p.places)
                 # ACCELERATION STEP HERE
                 # walk back up until you find root
-                # parent_itr = node.parent
-                # while(parent_itr != None):
-                #     greaterOrEqual = True
-                #     for place, token in parent_itr.places.items():
-                #         if M[place] < token:
-                #             greaterOrEqual = False
-                #             break
-                    
-                #     for place, token in parent_itr.places.items():
-                #         if M[place] == 'w':
-                #             continue
-                #         if M[place] > token:
-                #             M[place] = 'w'
+                parent_itr = node.parent
+                while(parent_itr != None):
+                    greaterOrEqual = True
+                    for place, token in parent_itr.places.items():
+                        if M[place] < token:
+                            greaterOrEqual = False
+                            break
+                    if(greaterOrEqual):
+                        for place, token in parent_itr.places.items():
+                            if M[place] == 'w':
+                                continue
+                            if M[place] > token:
+                                M[place] = 'w'
+                    parent_itr = parent_itr.parent
 
                 # ADD TO CHILDREN
                 child = self.TreeNode(M,parent=node)
