@@ -13,23 +13,26 @@ from pyvis.network import Network
 
 import re
 
+from collections import deque
+import copy
 
 # --- Petri Net Core ---
 class PetriNet:
+    # Constructor
     def __init__(self, filename = "sample.txt"):
-        self.places = {}
-        self.transitions = []
-        self.arcs_in = {}
-        self.arcs_out = {}
-        self.load_petri_net(filename)
-
+        self.places = {}        # The places of the Petri net; dynamically updates via firing transitions
+        self.transitions = []   # The transitions of the Petri net
+        self.arcs_in = {}       # The arcs from transitions to places
+        self.arcs_out = {}      # The arcs form places to transitions
+        self.load_petri_net(filename)   # Default loading of sample Petri Net
+    # Returns list of all fireable transitions
     def fireable(self):
         fireable = []
         for t, arcs in self.arcs_in.items():
             if all(self.places[p] >= w for p, w in arcs):
                 fireable.append(t)
         return fireable
-
+    # Fires a specified transition, if possible
     def fire(self, transition):
         if transition not in self.fireable():
             return False
@@ -39,6 +42,7 @@ class PetriNet:
             self.places[p] += w
         return True
 
+    # Loads in the Petri Net from a .txt file. Must be of same format as sample.txt
     def load_petri_net(self, filename):
         
         section = None
@@ -78,6 +82,83 @@ class PetriNet:
                     # transition -> place
                     else:
                         self.arcs_out.setdefault(src, []).append((dst, w))
+
+    def change_places(self, new_places):
+        self.places = copy.deepcopy(new_places)
+
+    class TreeNode:
+        def __init__(self, places, parent=None):
+            self.places = copy.deepcopy(places)
+            self.parent = copy.deepcopy(parent)
+            self.children = []
+        def add_child(self,child):
+            self.children.append(child)
+    
+    # Returns the coverability tree of the Petri Net. If finite, it is the Reachability Tree
+    def coverability_tree(self):
+        #grab a copy of this instance of the class
+        p = copy.deepcopy(self)
+        #queues for BFS
+        OPEN = deque()
+        CLOSED = []
+
+        root = self.TreeNode(p.places, parent = None)
+
+        OPEN.append(root)
+        while(OPEN):
+            # grab the next out of the queue
+            node = OPEN.popleft()
+            # mark it as seen
+            CLOSED.append(node.places)
+
+            #update list to node's markings
+            p.change_places(node.places)
+            
+            # process
+            # for every fireable transition in this state
+            fireable_list = copy.deepcopy(p.fireable()) 
+            for t in fireable_list:
+                # update the net to its markings
+                p.change_places(node.places)
+                # fire the transition
+                p.fire(t)
+                # grab a copy of its places after the transition
+                M = copy.deepcopy(p.places)
+                # ACCELERATION STEP HERE
+                # walk back up until you find root
+                # parent_itr = node.parent
+                # while(parent_itr != None):
+                #     greaterOrEqual = True
+                #     for place, token in parent_itr.places.items():
+                #         if M[place] < token:
+                #             greaterOrEqual = False
+                #             break
+                    
+                #     for place, token in parent_itr.places.items():
+                #         if M[place] == 'w':
+                #             continue
+                #         if M[place] > token:
+                #             M[place] = 'w'
+
+                # ADD TO CHILDREN
+                child = self.TreeNode(M,parent=node)
+                node.children.append(child)
+                
+                # IF NOT DUPLICATE, ALSO ADD TO OPEN
+                if M not in CLOSED:
+                    OPEN.append(child)
+
+                CLOSED.append(child.places)
+                
+
+        return root
+    # recursively prints cov tree
+    def print_coverability_tree(self,node, indent=0):
+        print(" " * indent + str(node.places))
+        for child in node.children:
+            self.print_coverability_tree(child, indent + 4)
+
+
 
 # -----------------------
 # PetriNetServer class
@@ -603,5 +684,8 @@ class PetriNetServer:
 if __name__ == "__main__":
     
     pn = PetriNet()
-    server = PetriNetServer(pn)
-    server.start(open_browser=True)
+    # server = PetriNetServer(pn)
+    # server.start(open_browser=True)
+
+    covtree = pn.coverability_tree()
+    pn.print_coverability_tree(covtree)
