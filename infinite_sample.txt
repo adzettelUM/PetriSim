@@ -1,0 +1,13 @@
+PLACES
+p1 1
+p2 0
+
+TRANSITIONS
+t1
+t2
+
+ARCS
+p1 -> t1 1
+t1 -> p2 1
+p2 -> t2 1
+t2 -> p1 2

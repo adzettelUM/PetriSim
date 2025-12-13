@@ -1,0 +1,46 @@
+PLACES
+p1_ph1_thinking 1
+p2_ph1_hungry 0
+p3_ph1_eating 0
+p4_ph2_thinking 1
+p5_ph2_hungry 0
+p6_ph2_eating 0
+f1 1
+f2 1
+
+TRANSITIONS
+t1_ph1_start_hungry
+t2_ph1_start_eating
+t3_ph1_finish_eating
+t1_ph2_start_hungry
+t2_ph2_start_eating
+t3_ph2_finish_eating
+
+ARCS
+# Philosopher 1
+p1_ph1_thinking -> t1_ph1_start_hungry 1
+t1_ph1_start_hungry -> p2_ph1_hungry 1
+
+p2_ph1_hungry -> t2_ph1_start_eating 1
+f1 -> t2_ph1_start_eating 1
+f2 -> t2_ph1_start_eating 1
+t2_ph1_start_eating -> p3_ph1_eating 1
+
+p3_ph1_eating -> t3_ph1_finish_eating 1
+t3_ph1_finish_eating -> p1_ph1_thinking 1
+t3_ph1_finish_eating -> f1 1
+t3_ph1_finish_eating -> f2 1
+
+# Philosopher 2
+p4_ph2_thinking -> t1_ph2_start_hungry 1
+t1_ph2_start_hungry -> p5_ph2_hungry 1
+
+p5_ph2_hungry -> t2_ph2_start_eating 1
+f2 -> t2_ph2_start_eating 1
+f1 -> t2_ph2_start_eating 1
+t2_ph2_start_eating -> p6_ph2_eating 1
+
+p6_ph2_eating -> t3_ph2_finish_eating 1
+t3_ph2_finish_eating -> p4_ph2_thinking 1
+t3_ph2_finish_eating -> f2 1
+t3_ph2_finish_eating -> f1 1

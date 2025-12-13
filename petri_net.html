@@ -32,7 +32,7 @@
         <style type="text/css">
 
              #mynetwork {
-                 width: 100vw;
+                 width: 50vw;
                  height: 100vh;
                  background-color: #ffffff;
                  border: 1px solid lightgray;
@@ -125,155 +125,55 @@
         </script>
     
 <!-- TOOLBAR -->
-<div id="toolbar" style="
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    z-index: 9999;
-    background: rgba(255,255,255,0.9);
-    padding: 8px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    display:flex;
-    gap:6px;
-    align-items:center;
-">
-  <button onclick="emitStep()" title="Step (fire selected transition)">Step</button>
-  <button onclick="emitRunToDeadlock()" title="Run until deadlock">Run to Deadlock</button>
-  <button onclick="emitUndo()" title="Undo">Undo</button>
-  <button onclick="emitRedo()" title="Redo">Redo</button>
-  <button onclick="emitReset()" title="Reset tokens">Reset</button>
-  <button onclick="saveNet()" title="Save net to JSON">Save</button>
-  <input id="loadFile" type="file" style="display:none" onchange="loadNetFromFile(event)" />
-  <button onclick="document.getElementById('loadFile').click()" title="Load net from JSON">Load</button>
-  <button onclick="zoomToFit()" title="Zoom to fit">Zoom to Fit</button>
+<div id="toolbar" style="position:fixed;top:10px;left:10px;z-index:9999;background:rgba(255,255,255,0.9);
+padding:8px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:flex;gap:6px;align-items:center;">
+  <button onclick="emitStep()">Step</button>
+  <button onclick="emitCoverabilityTree()">Coverability Tree</button>
+  <button onclick="emitUndo()">Undo</button>
+  <button onclick="emitRedo()">Redo</button>
+  <button onclick="emitReset()">Reset</button>
   <span id="status" style="margin-left:6px;font-weight:600;"></span>
 </div>
 
-<!-- DEADLOCK BANNER (hidden by default) -->
-<div id="deadlockBanner" style="
-    display:none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    background: red;
-    color: white;
-    text-align: center;
-    padding: 18px;
-    font-size: 28px;
-    font-weight: 700;
-    z-index: 9998;
-    cursor: pointer;
-">
-    DEADLOCK — CLICK TO RESET
+<!-- DEADLOCK BANNER -->
+<div id="deadlockBanner" style="display:none;position:fixed;top:0;left:0;width:100%;background:red;color:white;
+text-align:center;padding:18px;font-size:28px;font-weight:700;z-index:9998;cursor:pointer;">
+DEADLOCK — CLICK TO RESET
 </div>
+
+<!-- COVERABILITY TREE PANEL -->
+<div id="coverabilityTreeContainer" style="position:fixed;top:0;right:0;width:50vw;height:100vh;border-left:2px solid #333;
+background:#f8f8f8;overflow:auto;z-index:9997;"></div>
 
 <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
 <script type="text/javascript">
-  var socket = io();
-
-  // network variable is created by pyvis as 'network'
-  // helper to update node (circle or box)
-  function applyNodeUpdate(n) {
-    let update = { id: n.id, label: n.label, color: n.color };
-    if(n.size !== null) {
-      update.size = n.size;
+var socket = io();
+function applyNodeUpdate(n){ let u={id:n.id,label:n.label,color:n.color}; if(n.size!==null) u.size=n.size;
+if(n.width!==null){u.width=n.width;u.height=n.height;} try{network.body.data.nodes.update(u);}catch(e){console.error(e,u);} }
+socket.on("update",function(payload){
+    if(payload.nodes) payload.nodes.forEach(n=>applyNodeUpdate(n));
+    document.getElementById('deadlockBanner').style.display = payload.deadlocked ? 'block':'none';
+    if(payload.message){ document.getElementById('status').innerText=payload.message;
+    setTimeout(()=>document.getElementById('status').innerText='',1500);}
+});
+network.on("click",function(params){
+    if(params.nodes && params.nodes.length===1 && params.nodes[0].startsWith("t_")){
+        socket.emit("fire",{transition:params.nodes[0].substring(2)});
     }
-    if(n.width !== null) {
-      update.width = n.width;
-      update.height = n.height;
-    }
-    try {
-      network.body.data.nodes.update(update);
-    } catch(e) {
-      console.error("update error", e, update);
-    }
-  }
-
-  // When server sends update, apply nodes and deadlock/banner state
-  socket.on("update", function(payload) {
-    if(payload.nodes) {
-      payload.nodes.forEach(function(n) { applyNodeUpdate(n); });
-    }
-    if(payload.deadlocked) {
-      document.getElementById('deadlockBanner').style.display = 'block';
-    } else {
-      document.getElementById('deadlockBanner').style.display = 'none';
-    }
-    if(payload.message) {
-      document.getElementById('status').innerText = payload.message;
-      setTimeout(()=>document.getElementById('status').innerText='', 1500);
-    }
-  });
-
-  // handle click on network nodes
-  network.on("click", function(params) {
-    if(params.nodes && params.nodes.length === 1) {
-      var nodeId = params.nodes[0];
-      if(nodeId.startsWith("t_")) {
-        // trigger server fire of this transition
-        socket.emit("fire", { transition: nodeId.substring(2) });
-      }
-    }
-  });
-
-  // deadlock banner click triggers reset
-  document.getElementById("deadlockBanner").onclick = function() {
-    socket.emit("reset");
-  };
-
-  // Toolbar functions
-  function emitStep() {
-    // Step: fire currently selected transition (if any)
-    var sel = network.getSelectedNodes();
-    if(sel && sel.length === 1 && sel[0].startsWith("t_")) {
-      socket.emit("fire", { transition: sel[0].substring(2) });
-    } else {
-      // no selection: fire the first available transition
-      socket.emit("step");
-    }
-  }
-  function emitRunToDeadlock() { socket.emit("run_to_deadlock"); }
-  function emitUndo() { socket.emit("undo"); }
-  function emitRedo() { socket.emit("redo"); }
-  function emitReset() { socket.emit("reset"); }
-  function zoomToFit() { network.fit(); }
-
-  // Save/Load
-  function saveNet() {
-    socket.emit("save_request");
-  }
-  socket.on("save_data", function(payload) {
-    var blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = "petri_net.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  function loadNetFromFile(evt) {
-    var file = evt.target.files[0];
-    if(!file) return;
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        var obj = JSON.parse(e.target.result);
-        socket.emit("load_request", obj);
-      } catch(err) {
-        alert("Invalid JSON file");
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  // network ready -> request full update
-  socket.on("connect", function() {
-    socket.emit("client_ready");
-  });
-
+});
+document.getElementById("deadlockBanner").onclick=function(){socket.emit("reset");}
+function emitStep(){ var sel=network.getSelectedNodes();
+if(sel && sel.length===1 && sel[0].startsWith("t_")) socket.emit("fire",{transition:sel[0].substring(2)});
+else socket.emit("step"); }
+function emitCoverabilityTree(){socket.emit("show_coverability_tree");}
+function emitUndo(){socket.emit("undo");}
+function emitRedo(){socket.emit("redo");}
+function emitReset(){socket.emit("reset");}
+socket.on("coverability_tree_html",function(payload){
+    document.getElementById("coverabilityTreeContainer").innerHTML =
+    `<iframe src="${payload.html_path}" style="width:100%;height:100%;border:none;"></iframe>`;
+});
+socket.on("connect",function(){socket.emit("client_ready");});
 </script>
 </body>
 </html>
