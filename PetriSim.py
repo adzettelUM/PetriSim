@@ -98,7 +98,7 @@ class PetriNet:
         self.places = copy.deepcopy(new_places)
 
     class TreeNode:
-        def __init__(self, places, parent=None, transition=""):
+        def __init__(self, places, parent=None, transition="Initial"):
             self.places = places
             self.parent = parent
             self.children = []
@@ -421,20 +421,20 @@ socket.on("connect",function(){socket.emit("client_ready");});
                         },
                          "barnesHut": {
                         "gravitationalConstant": -3000,
-                        "centralGravity": 0.3,
+                        "centralGravity": 0.0,
                         "springLength": 200,
-                        "springConstant": 0.05,
-                        "damping": 0.09,
+                        "springConstant": 0.00,
+                        "damping": 0.00,
                         "avoidOverlap": 1
                         },
-                        "physics": {"enabled": true},
+                        "physics": {"enabled": false},
                         "interaction": {"hover": true, "multiselect": false}
                         }
                         """)
                     def add_node_edges(node,parent_id=None):
                         nid=f"ct_{id(node)}"
-                        label=f"{node.transition}\n{node.places}"
-                        color="#FFA500" if node.transition else "#ADD8E6"
+                        label=f"{node.transition}\n{list(node.places.values())}"
+                        color="#FFA500" if node.transition != "Initial" else "#ADD8E6"
                         tree_net.add_node(nid,label=label,shape="box",color=color)
                         if parent_id: tree_net.add_edge(parent_id,nid)
                         for child in node.children: add_node_edges(child,nid)
