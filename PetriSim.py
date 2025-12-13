@@ -204,6 +204,11 @@ class PetriNetVisualizer:
         self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode="eventlet")
 
         self.net = Network(directed=True, notebook=False, height="100vh", width="50vw")
+        self.net.set_options("""
+                        "physics": {"enabled": false},
+                        "interaction": {"hover": true, "multiselect": false}
+                        }
+                        """)
         self.place_nodes: Dict[str,str] = {}
         self.transition_nodes: Dict[str,str] = {}
         self.built = False
@@ -218,6 +223,7 @@ class PetriNetVisualizer:
     # -------------------
     def build_graph(self):
         self.net = Network(directed=True, notebook=False, height="100vh", width="50vw")
+
         # Places
         for place, tokens in self.pn.places.items():
             nid = f"p_{place}"
@@ -253,7 +259,7 @@ class PetriNetVisualizer:
                 self.net.add_edge(self.transition_nodes[t], self.place_nodes[place], label=str(w), smooth="curvedCCW")
         self.net.set_options("""
         var options = {
-          "physics": {"stabilization": false},
+          "physics": {"enabled": false},
           "interaction": { "hover": true, "multiselect": false }
         }
         """)
