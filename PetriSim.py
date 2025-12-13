@@ -25,34 +25,9 @@ class PetriNet:
         self.arcs_in = {}       # The arcs from transitions to places
         self.arcs_out = {}      # The arcs form places to transitions
         self.load_petri_net(filename)   # Default loading of sample Petri Net
-    # Returns list of all fireable transitions
-    def fireable(self):
-        fireable = []
-        for t, arcs in self.arcs_in.items():
-            can_fire = True
-            for p, w in arcs:
-                if(self.places[p] == 'w'):
-                    continue
-                if(self.places[p] < w):
-                    can_fire = False
-                    break
-            if(can_fire):
-                fireable.append(t)
-        return fireable
-    # Fires a specified transition, if possible
-    def fire(self, transition):
-        if transition not in self.fireable():
-            return False
-        for p, w in self.arcs_in[transition]:
-            if(self.places[p] == 'w'):
-                continue
-            self.places[p] -= w
-        for p, w in self.arcs_out[transition]:
-            if(self.places[p] == 'w'):
-                continue
-            self.places[p] += w
-        return True
+    
 
+    
     # Loads in the Petri Net from a .txt file. Must be of same format as sample.txt
     def load_petri_net(self, filename):
         
@@ -93,6 +68,36 @@ class PetriNet:
                     # transition -> place
                     else:
                         self.arcs_out.setdefault(src, []).append((dst, w))
+
+
+    # Returns list of all fireable transitions
+    def fireable(self):
+        fireable = []
+        for t, arcs in self.arcs_in.items():
+            can_fire = True
+            for p, w in arcs:
+                if(self.places[p] == 'w'):
+                    continue
+                if(self.places[p] < w):
+                    can_fire = False
+                    break
+            if(can_fire):
+                fireable.append(t)
+        return fireable
+    # Fires a specified transition, if possible
+    def fire(self, transition):
+        if transition not in self.fireable():
+            return False
+        for p, w in self.arcs_in[transition]:
+            if(self.places[p] == 'w'):
+                continue
+            self.places[p] -= w
+        for p, w in self.arcs_out[transition]:
+            if(self.places[p] == 'w'):
+                continue
+            self.places[p] += w
+        return True
+
 
     def change_places(self, new_places):
         self.places = copy.deepcopy(new_places)
@@ -157,16 +162,15 @@ class PetriNet:
 
                 # ADD TO CHILDREN
                 child = self.TreeNode(M,parent=node,transition=t)
-                node.children.append(child)
+                node.add_child(child)
                 
                 # IF NOT DUPLICATE, ALSO ADD TO OPEN
                 if M not in CLOSED:
                     OPEN.append(child)
 
                 CLOSED.append(child.places)
-                
-
         return root
+
     # recursively prints cov tree
     def print_coverability_tree(self,node, indent=0):
         print(" " * indent + node.transition + " -> " + str(node.places))
