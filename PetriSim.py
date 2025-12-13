@@ -410,6 +410,27 @@ socket.on("connect",function(){socket.emit("client_ready");});
                 try:
                     root = self.pn.coverability_tree()
                     tree_net = Network(directed=True, notebook=False, height="100vh", width="100%")
+                    tree_net.set_options("""
+                        var options = {
+                        "layout": {
+                            "hierarchical": {
+                            "enabled": true,
+                            "direction": "UD",   
+                            "sortMethod": "directed"
+                            }
+                        },
+                         "barnesHut": {
+                        "gravitationalConstant": -3000,
+                        "centralGravity": 0.3,
+                        "springLength": 200,
+                        "springConstant": 0.05,
+                        "damping": 0.09,
+                        "avoidOverlap": 1
+                        },
+                        "physics": {"enabled": true},
+                        "interaction": {"hover": true, "multiselect": false}
+                        }
+                        """)
                     def add_node_edges(node,parent_id=None):
                         nid=f"ct_{id(node)}"
                         label=f"{node.transition}\n{node.places}"
@@ -480,7 +501,7 @@ socket.on("connect",function(){socket.emit("client_ready");});
 # -----------------------
 if __name__ == "__main__":
     
-    pn = PetriNet()
+    pn = PetriNet("two_philosophers.txt")
     server = PetriNetVisualizer(pn)
     server.start(open_browser=True)
 
